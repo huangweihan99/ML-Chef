@@ -1,15 +1,8 @@
 import streamlit as st
-import evaluate 
-import pandas as pd
-import tqdm
 import torch
-import math
 import transformers
-from transformers import AutoTokenizer, GPT2LMHeadModel, Trainer, TrainingArguments, DataCollatorForLanguageModeling
-from datasets import Dataset, load_metric
-from ast import literal_eval
-from statistics import mean
-from utils import format_input_ingredients, postprocess_ingredients
+from transformers import AutoTokenizer, GPT2LMHeadModel
+from utils import format_input_ingredients, postprocess_ingredients, postprocess_recipe, get_title, recipe_to_txt
 
 st.set_page_config(layout="wide")
 
@@ -114,7 +107,7 @@ with col1:
         if 'final_ingredient_input' not in st.session_state:
             st.session_state['final_ingredient_input'] = ''
         
-        submit_ingredients = st.form_submit_button('Compile Ingredients')
+        submit_ingredients = st.form_submit_button('Compile Ingredients', use_container_width=True)
         
         if submit_ingredients and augment == True:
             if ingredient_input == '<NER_START> ':
@@ -137,14 +130,25 @@ with col1:
 with col2:
     with st.form("recipe_generation"):
         st.header("Recipe Generation")
-        if submit_ingredients:
+        if submit_ingredients and st.session_state['final_ingredient_input'] != '':
             st.write('The final ingredient list is: ', postprocess_ingredients(st.session_state['final_ingredient_input']))
         
-        generate_recipe = st.form_submit_button('Generate Recipe')
+        generate_recipe = st.form_submit_button('Generate Recipe', use_container_width=True)
+        
+        if 'recipe' not in st.session_state:
+            st.session_state['recipe'] = ''
         
         if generate_recipe:
             if st.session_state['final_ingredient_input'] == '':
                 st.error('Input ingredients and compile an ingredient list before generating a recipe', icon="🚨")
             else:
-                recipe = infer_recipe('<RECIPE_START> ' + st.session_state['final_ingredient_input'])
-                st.write("recipe: ", recipe)
+                st.session_state['recipe'] = infer_recipe('<RECIPE_START> ' + st.session_state['final_ingredient_input'])
+                postprocess_recipe(st.session_state['recipe'])
+    
+    if st.session_state['recipe'] != '':
+        st.download_button(
+            label="Download Recipe",
+            data=recipe_to_txt(st.session_state['recipe']),
+            file_name=f"{get_title(st.session_state['recipe'])}.txt",
+            use_container_width=True
+        )
