@@ -1,3 +1,2 @@
-recipe_model1/pytorch_model.bin filter=lfs diff=lfs merge=lfs -text
 recipe_model/pytorch_model.bin filter=lfs diff=lfs merge=lfs -text
 ingredient_model/pytorch_model.bin filter=lfs diff=lfs merge=lfs -text
