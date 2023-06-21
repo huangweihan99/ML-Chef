@@ -2,7 +2,7 @@ import streamlit as st
 import torch
 import transformers
 from transformers import AutoTokenizer, GPT2LMHeadModel
-from utils import format_input_ingredients, postprocess_ingredients, postprocess_recipe, get_title, recipe_to_txt
+from utils import format_input_ingredients, postprocess_ingredients, postprocess_recipe, get_title, recipe_to_txt, convert_temp, convert_mass, convert_volume, convert_length
 
 st.set_page_config(layout="wide")
 
@@ -12,6 +12,8 @@ device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is
 
 @st.cache_resource
 def load_ingredient_tokenizer():
+    """Loads ingredient tokenizer and caches it"""
+    
     ingredient_tokenizer = AutoTokenizer.from_pretrained("gpt2")
     ingredient_tokenizer.add_special_tokens({"pad_token": "<PAD>"})
     ingredient_tokenizer.add_tokens(["<NER_START>", "<NEXT_NER>", "<NER_END>"])
@@ -20,6 +22,8 @@ def load_ingredient_tokenizer():
 
 @st.cache_resource
 def load_recipe_tokenizer():
+    """Loads recipe tokenizer and caches it"""
+    
     recipe_tokenizer = AutoTokenizer.from_pretrained("gpt2")
     recipe_tokenizer.add_special_tokens({"pad_token": "<PAD>", "bos_token": "<RECIPE_START>", "eos_token": "<RECIPE_END>"})
     recipe_tokenizer.add_tokens(["<NER_START>", "<NEXT_NER>", "<NER_END>", "<INGR_START>", "<NEXT_INGR>", "<INGR_END>", "<DIR_START>", "<NEXT_DIR>", "<DIR_END>", "<TITLE_START>", "<TITLE_END>"])
@@ -28,6 +32,7 @@ def load_recipe_tokenizer():
 
 @st.cache_resource
 def load_ingredient_model():
+    """Loads ingredient recommendation model and caches it"""
     ingredient_model = GPT2LMHeadModel.from_pretrained(r"C:\Users\Weihan\OneDrive - Imperial College London\Desktop\School Work\Imperial College London\EIE\FYP\ML-Chef\ingredient_model")
     ingredient_model = ingredient_model.to(device)
     
@@ -35,6 +40,7 @@ def load_ingredient_model():
 
 @st.cache_resource
 def load_recipe_model():
+    """Loads recipe generation model and caches it"""
     recipe_model = GPT2LMHeadModel.from_pretrained(r"C:\Users\Weihan\OneDrive - Imperial College London\Desktop\School Work\Imperial College London\EIE\FYP\ML-Chef\recipe_model")
     recipe_model = recipe_model.to(device)
     
@@ -64,10 +70,6 @@ def infer_recipe(inp):
     output = recipe_model.generate(X, attention_mask=a, **recipe_generation_kwargs)
     output = recipe_tokenizer.decode(output[0])
     return output
-
-def test(hehe):
-    if hehe == 'Temperature':
-        st.write('hi')
 
 col1, col2 = st.columns(2)
 
@@ -106,7 +108,7 @@ with col1:
             "top_k":  5,
             "temperature": 1,
             "pad_token_id": 50257,
-            "do_sample": True, #for top k sampling
+            "do_sample": True,
         }
             
         ingredient_input = '<NER_START> ' + str.join(' <NEXT_NER> ', ingredient_input)
@@ -124,6 +126,7 @@ with col1:
                 st.session_state['final_ingredient_input'] = ''
                 st.error('Input ingredients before compiling an ingredient list', icon="🚨")
             else:
+                st.warning('The ingredient augmentation feature is presently unable to account for dietary resitrctions, use at your own discretion', icon="⚠️")
                 st.session_state['final_ingredient_input'] = format_input_ingredients(infer_ingredients(ingredient_input))
                 end_token_index = st.session_state['final_ingredient_input'].find('<NER_END>')
                 st.session_state['final_ingredient_input'] = st.session_state['final_ingredient_input'][:end_token_index+9]
@@ -172,7 +175,7 @@ with col2:
             "top_k":  k,
             "temperature": temp,
             "pad_token_id": 50257,
-            "do_sample": True, #for top k sampling
+            "do_sample": True,
         }
         
         if generate_recipe:
@@ -208,13 +211,7 @@ with st.sidebar:
         
     temp_input = st.number_input('**Enter input temperature value**')
     
-    if temp_unit1 == 'Fahrenheit' and temp_unit2 == 'Degree Celsius':
-        temp_output = round(temp_input - 32 * (5/9), 2)
-        st.write(f"{round(temp_input, 2)}F = {temp_output}" + u"\u2103")
-        
-    if temp_unit2 == 'Fahrenheit' and temp_unit1 == 'Degree Celsius':
-        temp_output = round(temp_input / (5/9) + 32, 2)
-        st.write(f"{round(temp_input, 2)}" + u"\u2103"  + f"= {temp_output}F")
+    convert_temp(temp_unit1, temp_unit2, temp_input)
     
     st.markdown('___')
     
@@ -235,6 +232,8 @@ with st.sidebar:
         
     mass_input = st.number_input('**Enter input mass value**')
     
+    convert_mass(mass_unit1, mass_unit2, mass_input)
+    
     st.markdown('___')
     
     st.subheader('Volume Conversion')
@@ -243,16 +242,18 @@ with st.sidebar:
     with col7:
         vol_unit1 = st.selectbox(
             '**Select input unit**',
-            ('', 'Cup', 'Tablespoon', 'Teaspoon', 'Liter', 'Milliliter')
+            ('', 'Cup', 'Tablespoon', 'Teaspoon', 'Litre', 'Millilitre')
         )
         
     with col8:
         vol_unit2 = st.selectbox(
             '**Select output unit**',
-            ('', 'Cup', 'Tablespoon', 'Teaspoon', 'Liter', 'Milliliter')
+            ('', 'Cup', 'Tablespoon', 'Teaspoon', 'Litre', 'Millilitre')
         )
         
     vol_input = st.number_input('**Enter input volume value**')
+    
+    convert_volume(vol_unit1, vol_unit2, vol_input)
     
     st.markdown('___')
     
@@ -262,16 +263,18 @@ with st.sidebar:
     with col9:
         len_unit1 = st.selectbox(
             '**Select input unit**',
-            ('', 'Foot', 'Inch', 'Meter', 'Centimeter')
+            ('', 'Foot', 'Inch', 'Metre', 'Centimetre')
         )
         
     with col10:
         len_unit2 = st.selectbox(
             '**Select output unit**',
-            ('', 'Foot', 'Inch', 'Meter', 'Centimeter')
+            ('', 'Foot', 'Inch', 'Metre', 'Centimetre')
         )
         
     len_input = st.number_input('**Enter input length value**')
+    
+    convert_length(len_unit1, len_unit2, len_input)
     
     st.markdown('___')
     
