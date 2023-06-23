@@ -76,9 +76,12 @@ col1, col2 = st.columns(2)
 with col1:
     with st.form("ingredient_input"):
         st.header("Ingredient Input")
-        pantry_ingredient_input = st.multiselect('**Select common pantry ingredients to use**', ['salt', 'pepper', 'sugar', 'olive oil', 'vegetable oil', 'garlic', 'onion', 'eggs', 'flour', 'milk', 'butter'])
-
-        ingredient_input = st.text_input('**Enter other ingredients in CSV format e.g. *chicken, pasta, tomatoes***')
+    
+        st.markdown('**Select common pantry ingredients to use**')
+        pantry_ingredient_input = st.multiselect('**Select common pantry ingredients to use**', ['salt', 'pepper', 'sugar', 'olive oil', 'vegetable oil', 'garlic', 'onion', 'eggs', 'flour', 'milk', 'butter'], label_visibility="collapsed")
+        
+        st.markdown('**Enter other ingredients in CSV format e.g. `chicken, pasta, tomatoes`**')
+        ingredient_input = st.text_input('**Enter other ingredients in CSV format e.g. `chicken, pasta, tomatoes`**', label_visibility="collapsed")
 
         for ingredient in pantry_ingredient_input:
             if ingredient_input == '':
@@ -147,21 +150,25 @@ with col2:
         st.header("Recipe Generation")
         if submit_ingredients and st.session_state['final_ingredient_input'] != '':
             st.write('The final ingredient list is: ', postprocess_ingredients(st.session_state['final_ingredient_input']))
-            
+        
+        st.markdown('**Select a value for `k`, controls the variety of recipes generated (larger value = more varied)**')
         k = st.slider(
-            label='**Select a value for the k**',
+            label='**Select a value for k**',
             min_value=1,
             max_value=20,
             value=5,
-            step=1
+            step=1,
+            label_visibility="collapsed"
         )
         
+        st.markdown('**Select a value for the `temperature`, controls how adventurous the recipe generated is (larger value = more adventurous)**')
         temp = st.slider(
             label='**Select a value for the temperature**',
             min_value=0.00,
             max_value=1.00,
             value=0.90,
-            step=0.05
+            step=0.05,
+            label_visibility="collapsed"
         )
         
         generate_recipe = st.form_submit_button('Generate Recipe', use_container_width=True)
